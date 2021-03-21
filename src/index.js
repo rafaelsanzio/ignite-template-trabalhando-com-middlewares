@@ -14,9 +14,11 @@ function checksExistsUserAccount(request, response, next) {
 
   const user = users.find((user) => user.username === username);
 
-  if (user) {
-    return response.status(404).json({ error: "Username already exists" });
+  if (!user) {
+    return response.status(404).json({ error: "Username does not exists" });
   }
+
+  request.user = { ...user };
 
   next();
 }
@@ -24,10 +26,16 @@ function checksExistsUserAccount(request, response, next) {
 function checksCreateTodosUserAvailability(request, response, next) {
   const { user } = request;
 
-  if (!user.pro && user.todos.length > 10) {
-    response
-      .status(403)
-      .json({ error: "Check user availability and upgrade for Pro" });
+  if (!user.pro) {
+    const freeToDos = user.todos.filter((todo) => todo.done === false);
+
+    if (freeToDos.length > 9) {
+      return response
+        .status(403)
+        .json({ error: "Check user availability and upgrade to pro" });
+    }
+
+    next();
   }
 
   next();
@@ -37,13 +45,13 @@ function checksTodoExists(request, response, next) {
   const { id } = request.params;
   const { username } = request.headers;
 
-  if (!validate(id)) {
-    return response.status(400).json({ error: "Id is not typed with uuid" });
-  }
-
   const user = users.find((user) => user.username === username);
   if (!user) {
     return response.status(404).json({ error: "Username does not exists" });
+  }
+
+  if (!validate(id)) {
+    return response.status(400).json({ error: "Id is not typed with uuid" });
   }
 
   const todo = user.todos.find((todo) => todo.id === id);
@@ -51,11 +59,24 @@ function checksTodoExists(request, response, next) {
     return response.status(404).json({ error: "Todo does not exists" });
   }
 
+  request.todo = todo;
+  request.user = user;
+
   next();
 }
 
 function findUserById(request, response, next) {
-  // Complete aqui
+  const { id } = request.params;
+
+  const user = users.find((user) => user.id === id);
+
+  if (!user) {
+    return response.status(404).json({ error: "Username already exists" });
+  }
+
+  request.user = { ...user };
+
+  next();
 }
 
 app.post("/users", (request, response) => {
